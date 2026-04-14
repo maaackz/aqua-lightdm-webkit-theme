@@ -8,22 +8,31 @@ function show_prompt(text) {
   const password_container = document.querySelector("#password_container");
   const password_entry = document.querySelector("#password_entry");
   const background = document.querySelector("#background");
+  
+  const users = document.querySelectorAll(".user");
+  const escaped_user = CSS.escape(selected_user);
+  const user_node = document.querySelector("#" + escaped_user);
+  
   if (!isVisiblePass(password_container)) {
-    const users = document.querySelectorAll(".user");
-    const user_node = document.querySelector("#" + selected_user);
-    const rect = user_node.getClientRects()[0];
-    const parentRect = user_node.parentElement.getClientRects()[0];
-    const center = parentRect.width / 2;
+    if (user_node) {
+      const rect = user_node.getClientRects()[0];
+      const parentRect = user_node.parentElement.getClientRects()[0];
+      const center = parentRect.width / 2;
 
-    let left = center - rect.width / 2 - rect.left;
+      let left = center - rect.width / 2 - rect.left;
 
-    if (left < 5 && left > -5) {
-      left = 0;
-    }
+      if (left < 5 && left > -5) {
+        left = 0;
+      }
 
-    for (let user of users) {
-      setVisible(user, user.id === selected_user);
-      user.style.left = left;
+      for (let user of users) {
+        setVisible(user, user.id === selected_user);
+        user.style.left = left;
+      }
+    } else {
+      for (let user of users) {
+        setVisible(user, user.id === selected_user);
+      }
     }
 
     setVisiblePass(password_container, true);
@@ -39,7 +48,7 @@ function show_prompt(text) {
     setVisible(enter, true);
   }
 
-  background.classList.add("blurred");
+  if (background) background.classList.add("blurred");
   password_entry.value = "";
   password_entry.focus();
 }
@@ -87,9 +96,11 @@ function timed_login(user) {
 function start_authentication(username) {
   if (!window.lightdm) return;
   
-  window.lightdm.cancel_authentication();
   selected_user = username;
+  window.lightdm.cancel_authentication();
   window.lightdm.authenticate(username);
+  
+  show_prompt("Password: ");
 }
 
 function provide_secret() {
@@ -184,9 +195,9 @@ function getCurrentTime() {
 function initializeClock() {
   const time = document.querySelector("#time");
 
-  time.innerHTML = getCurrentTime();
+  time.innerHTML = window.theme_utils?.get_current_localized_time() || getCurrentTime();
   setInterval(
-    () => (time.innerHTML = getCurrentTime()),
+    () => (time.innerHTML = window.theme_utils?.get_current_localized_time() || getCurrentTime()),
     60000
   );
 }
@@ -220,8 +231,28 @@ function initializeUsers() {
   setTimeout(show_users, 400);
 }
 
+function passwordKeydown(event) {
+  if (event.code === "Enter") {
+    provide_secret();
+    event.preventDefault();
+    event.stopPropagation();
+  }
+}
+
 function initGreeter() {
-  window.lightdm?.authentication_complete.connect(onAuthenticationComplete);
+  if (!window.lightdm) return;
+  
+  window.lightdm.show_prompt.connect(show_prompt);
+  window.lightdm.show_message.connect(show_message);
+  window.lightdm.show_error.connect(show_error);
+  window.lightdm.authentication_complete.connect(onAuthenticationComplete);
+  window.lightdm.timed_login.connect(timed_login);
+  
+  const passwordEntry = document.querySelector("#password_entry");
+  if (passwordEntry) {
+    passwordEntry.addEventListener("keydown", passwordKeydown);
+  }
+  
   initializeUsers();
   initializeClock();
   document.addEventListener("keydown", key_press_handler);
