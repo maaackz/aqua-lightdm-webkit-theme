@@ -78,21 +78,7 @@ function getSelectedUserCard() {
 }
 
 function updateCardLayout() {
-  const selectedCard = getSelectedUserCard();
   const cards = document.querySelectorAll(".user");
-  let left = 0;
-
-  if (selectedCard) {
-    const rect = selectedCard.getBoundingClientRect();
-    const parentRect = selectedCard.parentElement?.getBoundingClientRect();
-
-    if (rect.width > 0 && parentRect) {
-      left = parentRect.width / 2 - rect.width / 2 - rect.left;
-      if (Math.abs(left) < 5) {
-        left = 0;
-      }
-    }
-  }
 
   for (const card of cards) {
     const isSelected =
@@ -100,7 +86,7 @@ function updateCardLayout() {
       card.dataset.username === state.selectedUsername;
 
     setVisible(card, !state.selectedUsername || isSelected);
-    card.style.left = isSelected ? `${left}px` : "0px";
+    card.style.left = "0px";
   }
 }
 
@@ -253,11 +239,19 @@ function resolveBackgroundPath(basePath, entry) {
   return `${basePath.replace(/\/$/, "")}/${entry}`;
 }
 
+function toFileUri(path) {
+  if (!path) return path;
+  if (/^[a-z]+:\/\//i.test(path)) return path;
+  if (path.startsWith("/")) return `file://${path}`;
+  return path;
+}
+
 function applyBackground(background, imagePath) {
   const gradient = "linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2))";
+  const url = toFileUri(imagePath);
 
-  if (imagePath) {
-    background.style.backgroundImage = `${gradient}, url("${imagePath}")`;
+  if (url) {
+    background.style.backgroundImage = `${gradient}, url("${url}")`;
     background.style.backgroundSize = "cover";
   } else {
     background.style.backgroundImage = gradient;
@@ -301,10 +295,10 @@ async function updateBackground() {
 
   for (const candidate of await collectBackgroundCandidates()) {
     if (token !== backgroundRequestToken) return;
-    const resolved = await loadImage(candidate);
+    const resolved = await loadImage(toFileUri(candidate));
     if (token !== backgroundRequestToken) return;
     if (resolved) {
-      applyBackground(background, resolved);
+      applyBackground(background, toFileUri(resolved));
       return;
     }
   }
@@ -470,3 +464,8 @@ function initGreeter() {
 }
 
 window.addEventListener("GreeterReady", initGreeter);
+window.addEventListener("load", () => {
+  if (!state.initialized && window.lightdm) {
+    initGreeter();
+  }
+});

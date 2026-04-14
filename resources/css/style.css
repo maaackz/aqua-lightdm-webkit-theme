@@ -51,7 +51,7 @@ body {
   width: 100%;
   height: 100%;
   z-index: 0;
-  background: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), url("/usr/share/backgrounds/current");
+  background: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), url("file:///usr/share/backgrounds/current");
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
@@ -148,6 +148,10 @@ a {
   justify-content: center;
   margin: 0 2px;
   width: min-content;
+}
+
+#session_container.hidden {
+  display: none;
 }
 
 #password_entry {
