@@ -11,6 +11,8 @@ const state = {
   usersByUsername: new Map(),
 };
 
+let backgroundRequestToken = 0;
+
 function $(selector) {
   return document.querySelector(selector);
 }
@@ -217,20 +219,95 @@ function shakePasswordContainer() {
   );
 }
 
-function updateBackground() {
-  const background = $("#background");
+function isImagePath(path) {
+  return /\.(jpe?g|png|gif|bmp|webp|svg)$/i.test(path || "");
+}
+
+function loadImage(path) {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(path);
+    image.onerror = () => resolve(null);
+    image.src = path;
+  });
+}
+
+function listDirectory(path) {
+  return new Promise((resolve) => {
+    if (!window.theme_utils?.dirlist) {
+      resolve([]);
+      return;
+    }
+    window.theme_utils.dirlist(path, false, (entries) => {
+      resolve(Array.isArray(entries) ? entries : []);
+    });
+  });
+}
+
+function resolveBackgroundPath(basePath, entry) {
+  if (!entry) return null;
+  if (/^[a-z]+:\/\//i.test(entry) || entry.startsWith("/")) {
+    return entry;
+  }
+  if (!basePath) return entry;
+  return `${basePath.replace(/\/$/, "")}/${entry}`;
+}
+
+function applyBackground(background, imagePath) {
+  const gradient = "linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2))";
+
+  if (imagePath) {
+    background.style.backgroundImage = `${gradient}, url("${imagePath}")`;
+    background.style.backgroundSize = "cover";
+  } else {
+    background.style.backgroundImage = gradient;
+    background.style.backgroundSize = "cover";
+  }
+  background.style.backgroundPosition = "center center";
+  background.style.backgroundRepeat = "no-repeat";
+}
+
+async function collectBackgroundCandidates() {
+  const candidates = [];
   const user = state.selectedUsername
     ? state.usersByUsername.get(state.selectedUsername)
     : null;
-  const imagePath = user?.background?.trim() || "/usr/share/backgrounds/current";
+  const backgroundDir = window.greeter_config?.branding?.background_images_dir;
+
+  if (user?.background?.trim()) {
+    candidates.push(user.background.trim());
+  }
+  candidates.push("/usr/share/backgrounds/current");
+
+  if (backgroundDir) {
+    const entries = await listDirectory(backgroundDir);
+    for (const entry of entries) {
+      if (typeof entry === "string" && isImagePath(entry)) {
+        candidates.push(resolveBackgroundPath(backgroundDir, entry));
+      }
+    }
+  }
+
+  return [...new Set(candidates)];
+}
+
+async function updateBackground() {
+  const background = $("#background");
 
   if (!background) return;
 
-  background.style.backgroundImage =
-    `linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), url("${imagePath}")`;
-  background.style.backgroundPosition = "center center";
-  background.style.backgroundRepeat = "no-repeat";
-  background.style.backgroundSize = "cover";
+  const token = ++backgroundRequestToken;
+  applyBackground(background, null);
+
+  for (const candidate of await collectBackgroundCandidates()) {
+    if (token !== backgroundRequestToken) return;
+    const resolved = await loadImage(candidate);
+    if (token !== backgroundRequestToken) return;
+    if (resolved) {
+      applyBackground(background, resolved);
+      return;
+    }
+  }
 }
 
 function handleAuthenticationComplete() {
