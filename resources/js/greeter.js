@@ -236,23 +236,29 @@ function listDirectory(path) {
 
 function resolveBackgroundPath(basePath, entry) {
   if (!entry) return null;
-  if (/^[a-z]+:\/\//i.test(entry) || entry.startsWith("/")) {
+  if (entry.startsWith("/")) {
     return entry;
   }
   if (!basePath) return entry;
   return `${basePath.replace(/\/$/, "")}/${entry}`;
 }
 
-function toFileUri(path) {
+function normalizeBackgroundPath(path) {
   if (!path) return path;
-  if (/^[a-z]+:\/\//i.test(path)) return path;
-  if (path.startsWith("/")) return `file://${path}`;
+  if (path.startsWith("file://")) {
+    return path.replace(/^file:\/+/, "/");
+  }
   return path;
 }
 
 function applyBackground(background, imagePath) {
+  if (!background) return;
+  
   const gradient = "linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2))";
-  const url = toFileUri(imagePath);
+  const url = normalizeBackgroundPath(imagePath);
+
+  // Don't clear background if path is null (preserve existing)
+  if (!url && background.style.backgroundImage) return;
 
   if (url) {
     background.style.backgroundImage = `${gradient}, url("${url}")`;
@@ -299,10 +305,10 @@ async function updateBackground() {
 
   for (const candidate of await collectBackgroundCandidates()) {
     if (token !== backgroundRequestToken) return;
-    const resolved = await loadImage(toFileUri(candidate));
+    const resolved = await loadImage(normalizeBackgroundPath(candidate));
     if (token !== backgroundRequestToken) return;
     if (resolved) {
-      applyBackground(background, toFileUri(resolved));
+      applyBackground(background, normalizeBackgroundPath(resolved));
       return;
     }
   }
@@ -449,7 +455,29 @@ function initializeUsers() {
   showUserList();
 }
 
-function initGreeter() {
+const defaultBackgrounds = [
+  "resources/assets/images/alexes-gerard-Z-pd4ztH5Oo-unsplash.jpg",
+  "resources/assets/images/freich-roquero-jUFnQzzslKo-unsplash.jpg",
+  "resources/assets/images/photo-1720514321361-fc8b237bad1a.jpg",
+  "resources/assets/images/sian-labay-sCYD1dvxLgU-unsplash.jpg",
+];
+
+function getRandomBackground() {
+  if (defaultBackgrounds.length === 0) return "resources/assets/images/photo-1720514321361-fc8b237bad1a.jpg";
+
+  const randomIndex = Math.floor(Math.random() * defaultBackgrounds.length);
+  return defaultBackgrounds[randomIndex];
+}
+
+function setDefaultBackground() {
+  const background = document.querySelector("#background");
+  if (background) {
+    const imagePath = getRandomBackground();
+    applyBackground(background, imagePath);
+  }
+}
+
+async function initGreeter() {
   if (state.initialized || !window.lightdm) return;
 
   state.initialized = true;
@@ -459,6 +487,12 @@ function initGreeter() {
   window.lightdm.authentication_complete.connect(
     handleAuthenticationComplete
   );
+
+  const background = document.querySelector("#background");
+  if (background) {
+    const imagePath = await getRandomBackground();
+    applyBackground(background, imagePath);
+  }
 
   bindPasswordForm();
   bindPowerButtons();
@@ -473,3 +507,11 @@ window.addEventListener("load", () => {
     initGreeter();
   }
 });
+
+// Fallback for local testing without web-greeter
+if (typeof window.lightdm === "undefined") {
+  document.addEventListener("DOMContentLoaded", () => {
+    setDefaultBackground();
+    initializeClock();
+  });
+}

@@ -51,20 +51,21 @@ body {
   width: 100%;
   height: 100%;
   z-index: 0;
-  background: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), url("file:///usr/share/backgrounds/current");
+  background: linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.25)),
+    url("../assets/images/photo-1720514321361-fc8b237bad1a.jpg");
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
-  -webkit-filter: blur(0px) brightness(100%);
-  filter: blur(0px) brightness(100%);
+  -webkit-filter: blur(4px) brightness(95%);
+  filter: blur(4px) brightness(95%);
   transform: scale(1.0);
   transition-duration: 1.2s;
 }
 
 #background.blurred {
   transform: scale(1.07);
-  -webkit-filter: blur(6px) brightness(80%);
-  filter: blur(6px) brightness(80%);
+  -webkit-filter: blur(12px) brightness(75%);
+  filter: blur(12px) brightness(75%);
 }
 
 input {
@@ -133,18 +134,17 @@ a {
 .center {
   display: flex;
   justify-content: center;
-  width: 100%;
   text-align: center;
 }
 
 #row_container {
-  display: flex;
+  display: inline-flex;
   height: 48px;
-  width: 100%;
   flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  margin: 0 auto;
 }
 
 #row_container.hidden {
@@ -155,7 +155,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 2px;
+  margin: 0;
   width: min-content;
 }
 
@@ -247,6 +247,17 @@ a {
   margin-bottom: 10px;
   margin-left: 10px;
   -webkit-user-select: none;
+  -webkit-transition: left 0.4s ease-in-out, opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+  transition: left 0.4s ease-in-out, opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+.user.hidden {
+  display: none;
+}
+
+.user.faded {
+  opacity: 0;
+  transform: translateY(20px);
 }
 
 .user:active {
