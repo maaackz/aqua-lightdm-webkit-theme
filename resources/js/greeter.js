@@ -93,9 +93,11 @@ function updateCardLayout() {
 function showUserList() {
   const background = $("#background");
   const passwordEntry = $("#password_entry");
+  const rowContainer = $("#row_container");
 
   state.selectedUsername = null;
   state.selectedSessionKey = null;
+  setVisible(rowContainer, false);
   setPromptVisible(false);
   updateCardLayout();
   setVisible($("#back"), false);
@@ -161,6 +163,7 @@ function handleUserClick(event) {
 function showPrompt(text, type) {
   const passwordEntry = $("#password_entry");
   const background = $("#background");
+  const rowContainer = $("#row_container");
   const promptText = (text || "").replace(/\s*:\s*$/, "").trim();
 
   if (type !== getPasswordPromptType()) {
@@ -171,6 +174,7 @@ function showPrompt(text, type) {
   }
 
   updateCardLayout();
+  setVisible(rowContainer, true);
   setPromptVisible(true);
   setVisible($("#back"), true);
   setVisible($("#enter"), true);
