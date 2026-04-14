@@ -1,38 +1,9 @@
 /*
- * greeter.js
- *
- * aqua-lightdm-webkit-theme is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License,
- * or any later version.
- *
- * aqua-lightdm-webkit-theme is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * The following additional terms are in effect as per Section 7 of the license:
- *
- * The preservation of all legal notices and author attributions in
- * the material or in the Appropriate Legal Notices displayed
- * by works containing it is required.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * greeter.js - Migrated for web-greeter
  */
 
-/* Globals */
-
-let time_remaining = 0;
 let selected_user = null;
-let valid_image = /.*\.(png|svg|jpg|jpeg|bmp)$/i;
 
-/* Callback API. Called by the webkit greeeter */
-
-/*
- * called when the greeter asks to show a login prompt for a user
- * @param {str} text to show in prompt
- */
 function show_prompt(text) {
   const password_container = document.querySelector("#password_container");
   const password_entry = document.querySelector("#password_entry");
@@ -73,10 +44,6 @@ function show_prompt(text) {
   password_entry.focus();
 }
 
-/*
- * called when the greeter asks to show a message
- * @param {str} text to show in message
- */
 function show_message(text) {
   const message = document.querySelector("#message_content");
 
@@ -91,10 +58,6 @@ function show_message(text) {
   message.classList.remove("error");
 }
 
-/*
- * called when the greeter asks to show an error
- * @param {str} text to show in error
- */
 function show_error(text) {
   show_message(text);
   const message = document.querySelector("#message_content");
@@ -102,12 +65,10 @@ function show_error(text) {
   message.classList.add("error");
 }
 
-/*
- * called when the greeter is finished the authentication request
- */
-function authentication_complete() {
-  if (lightdm.is_authenticated) {
-    lightdm.login(lightdm.authentication_user, lightdm.default_session);
+function onAuthenticationComplete() {
+  if (window.lightdm?.is_authenticated) {
+    const session = window.lightdm.default_session;
+    window.lightdm.start_session(session);
   } else {
     const password_container = document.querySelector("#password_container");
 
@@ -119,77 +80,23 @@ function authentication_complete() {
   }
 }
 
-/*
- * called when the greeter wants us to perform a timed login
- * @param {any} user to log in
- */
 function timed_login(user) {
-  lightdm.login(lightdm.timed_login_user);
+  window.lightdm?.start_session(window.lightdm.timed_login_user);
 }
 
-/* Implementation */
-
-/*
- * begin authenticating the given user
- * @param {str} name of user to authenticate
- */
 function start_authentication(username) {
-  if (typeof lightdm._user === null) {
-    try {
-      lightdm.cancel_authentication();
-    } catch (e) {
-      console.log(e);
-    }
-  }
-  lightdm.cancel_timed_login();
+  if (!window.lightdm) return;
+  
+  window.lightdm.cancel_authentication();
   selected_user = username;
-  try {
-    lightdm.start_authentication(username);
-  } catch (e) {
-    console.log(e);
-  }
+  window.lightdm.authenticate(username);
 }
 
-/*
- * provide password entered by user to lightdm
- */
 function provide_secret() {
-  entry = document.querySelector("#password_entry");
-  lightdm.provide_secret(entry.value);
+  const entry = document.querySelector("#password_entry");
+  window.lightdm?.respond(entry.value);
 }
 
-/*
- * enumerate available sessions
- */
-function initialize_sessions() {
-  const template = document.querySelector("#session_template");
-  const container = session_template.parentElement;
-
-  container.removeChild(template);
-
-  for (let session of lightdm.sessions) {
-    const label = s.querySelector(".session_label");
-
-    let s = template.cloneNode(true);
-
-    s.id = "session_" + session.key;
-
-    let radio = s.querySelector("input");
-
-    label.innerHTML = session.name;
-    radio.value = session.key;
-
-    if (session.key === lightdm.default_session.key) {
-      radio.checked = true;
-    }
-
-    session_container.appendChild(s);
-  }
-}
-
-/*
- * set visibilty of users
- */
 function show_users() {
   const users = document.querySelectorAll(".user");
   const background = document.querySelector("#background");
@@ -204,14 +111,10 @@ function show_users() {
   background.classList.remove("blurred");
 }
 
-/*
- * begin authenticating selected user
- * @param {any} click event
- */
 function user_clicked(event) {
   if (selected_user !== null) {
     selected_user = null;
-    lightdm.cancel_authentication();
+    window.lightdm?.cancel_authentication();
     show_users();
   } else {
     selected_user = event.currentTarget.id;
@@ -224,11 +127,6 @@ function user_clicked(event) {
   return false;
 }
 
-/*
- * set visibility of the given element
- * @param {element} element to change visibility of
- * @param {bool} make element visible or not
- */
 function setVisible(element, visible) {
   if (visible) {
     element.classList.remove("hidden");
@@ -237,11 +135,6 @@ function setVisible(element, visible) {
   }
 }
 
-/*
- * set visibility of the given password field
- * @param {element} password field to change visibility of
- * @param {bool} make password field visible or not
- */
 function setVisiblePass(element, visible) {
   if (visible) {
     element.classList.remove("passhidden");
@@ -250,36 +143,18 @@ function setVisiblePass(element, visible) {
   }
 }
 
-/*
- * get given element's visibilty
- * @param {any} element to check
- * @return {bool} return true if visible
- */
 function isVisible(element) {
   return !element.classList.contains("hidden");
 }
 
-/*
- * get given password field's visibilty
- * @param {any} password field to check
- * @return {bool} return true if visible
- */
 function isVisiblePass(element) {
   return !element.classList.contains("passhidden");
 }
 
-/*
- * set default avatar for user if none is found
- * @param {any} err user to set avatar
- */
 function on_image_error(err) {
   err.currentTarget.src = "resources/img/avatar.svg";
 }
 
-/*
- * enable keyboard navigation
- * @param {any} key press event to handle
- */
 function key_press_handler(event) {
   let action = null;
   switch (event.code) {
@@ -287,7 +162,7 @@ function key_press_handler(event) {
       action =
         selected_user != null
           ? provide_secret
-          : start_authentication(lightdm.users[0].name);
+          : start_authentication(window.lightdm?.users[0]?.name);
 
       event.preventDefault();
       event.stopPropagation();
@@ -301,22 +176,31 @@ function key_press_handler(event) {
   }
 }
 
-/* Initialization */
-
-function initialize() {
-  initialize_users();
-  initialize_clock();
-  document.addEventListener("keydown", key_press_handler);
+function getCurrentTime() {
+  const now = new Date();
+  return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function initialize_users() {
+function initializeClock() {
+  const time = document.querySelector("#time");
+
+  time.innerHTML = getCurrentTime();
+  setInterval(
+    () => (time.innerHTML = getCurrentTime()),
+    60000
+  );
+}
+
+function initializeUsers() {
+  if (!window.lightdm?.users) return;
+  
   const template = document.querySelector("#user_template");
   const parent = template.parentElement;
 
   parent.removeChild(template);
 
-  for (let user of lightdm.users) {
-    userNode = template.cloneNode(true);
+  for (const user of window.lightdm.users) {
+    const userNode = template.cloneNode(true);
     const image = userNode.querySelectorAll(".user_image")[0];
     const name = userNode.querySelectorAll(".user_name")[0];
 
@@ -336,23 +220,11 @@ function initialize_users() {
   setTimeout(show_users, 400);
 }
 
-function initialize_clock() {
-  const time = document.querySelector("#time");
-
-  time.innerHTML = theme_utils.get_current_localized_time();
-  setInterval(
-    () => (time.innerHTML = theme_utils.get_current_localized_time()),
-    60000
-  );
+function initGreeter() {
+  window.lightdm?.authentication_complete.connect(onAuthenticationComplete);
+  initializeUsers();
+  initializeClock();
+  document.addEventListener("keydown", key_press_handler);
 }
 
-function add_action(id, name, image, click_handler, template, parent) {
-  action_node = template.cloneNode(true);
-  action_node.id = "action_" + id;
-  img_node = action_node.querySelectorAll(".action_image")[0];
-  label_node = action_node.querySelectorAll(".action_label")[0];
-  label_node.innerHTML = name;
-  img_node.src = image;
-  action_node.onclick = click_handler;
-  parent.appendChild(action_node);
-}
+window.addEventListener("GreeterReady", initGreeter);
