@@ -1,188 +1,243 @@
-// mock lighdm for testing
-if (typeof lightdm == "undefined") {
-  lightdm = {};
-  lightdm.hostname = "test-host";
-  lightdm.languages = [
-    {code: "en_US", name: "English(US)", territory: "USA"},
-    {code: "en_UK", name: "English(UK)", territory: "UK"}
-  ];
-  lightdm.default_language = lightdm.languages[0];
-  lightdm.layouts = [
-    {
-      name: "test",
-      short_description: "test description",
-      short_description: "really long epic description"
+(function () {
+  if (window.lightdm !== undefined) {
+    return;
+  }
+
+  class Signal {
+    constructor(name) {
+      this.name = name;
+      this.callbacks = [];
     }
-  ];
-  lightdm.default_layout = lightdm.layouts[0];
-  lightdm.layout = lightdm.layouts[0];
-  lightdm.sessions = [
-    {key: "key1", name: "session 1", comment: "no comment"},
-    {key: "key2", name: "session 2", comment: "no comment"}
-  ];
 
-  lightdm.default_session = lightdm.sessions[0];
-  lightdm.authentication_user = null;
-  lightdm.is_authenticated = false;
-  lightdm.can_suspend = true;
-  lightdm.can_hibernate = true;
-  lightdm.can_restart = true;
-  lightdm.can_shutdown = true;
-
-  lightdm.users = [
-    {
-      name: "clarkk",
-      real_name: "Superman",
-      display_name: "Clark Kent",
-      image: "",
-      language: "en_US",
-      layout: null,
-      session: null,
-      logged_in: false
-    },
-    {
-      name: "brucew",
-      real_name: "Batman",
-      display_name: "Bruce Wayne",
-      image: "/home/brokenImage.gif",
-      language: "en_US",
-      layout: null,
-      session: null,
-      logged_in: false
-    },
-    {
-      name: "peterp",
-      real_name: "Spiderman",
-      display_name: "Peter Parker",
-      image: "",
-      language: "en_US",
-      layout: null,
-      session: null,
-      logged_in: true
+    connect(callback) {
+      if (typeof callback !== "function") return;
+      this.callbacks.push(callback);
     }
-  ];
 
-  lightdm.num_users = lightdm.users.length;
-  lightdm.timed_login_delay = 0; //set to a number higher than 0 for timed login simulation
-  lightdm.timed_login_user =
-    lightdm.timed_login_delay > 0 ? lightdm.users[0] : null;
-
-  lightdm.get_string_property = function() {};
-  lightdm.get_integer_property = function() {};
-  lightdm.get_boolean_property = function() {};
-  lightdm.cancel_timed_login = function() {
-    _lightdm_mock_check_argument_length(arguments, 0);
-    lightdm._timed_login_cancelled = true;
-  };
-
-  lightdm.provide_secret = function(secret) {
-    if (typeof lightdm._username == "undefined" || !lightdm._username) {
-      throw "must call start_authentication first";
+    disconnect(callback) {
+      this.callbacks = this.callbacks.filter((item) => item !== callback);
     }
-    _lightdm_mock_check_argument_length(arguments, 1);
-    var user = _lightdm_mock_get_user(lightdm.username);
 
-    if (!user && secret == lightdm._username) {
-      lightdm.is_authenticated = true;
-      lightdm.authentication_user = user;
+    emit(...args) {
+      for (const callback of this.callbacks) {
+        callback(...args);
+      }
+    }
+  }
+
+  function emitLater(signal, ...args) {
+    window.setTimeout(() => signal.emit(...args), 0);
+  }
+
+  function getUser(username) {
+    return window.lightdm.users.find((user) => user.username === username) || null;
+  }
+
+  function finishAuthentication(success, message) {
+    window.lightdm.is_authenticated = success;
+    window.lightdm.in_authentication = false;
+
+    if (!success) {
+      emitLater(window.lightdm.show_message, message || "Authentication failed", 1);
     } else {
-      lightdm.is_authenticated = false;
-      lightdm.authentication_user = null;
-      lightdm._username = null;
+      emitLater(window.lightdm.show_message, "", 0);
     }
-    authentication_complete();
-  };
 
-  lightdm.start_authentication = function(username) {
-    _lightdm_mock_check_argument_length(arguments, 1);
-    if (lightdm._username) {
-      throw "Already authenticating!";
-    }
-    var user = _lightdm_mock_get_user(username);
-    if (!user) {
-      show_error(username + " is an invalid user");
-    }
-    show_prompt("Password: ");
-    lightdm._username = username;
-  };
-
-  lightdm.cancel_authentication = function() {
-    _lightdm_mock_check_argument_length(arguments, 0);
-    if (!lightdm._username) {
-      throw "we are not authenticating";
-    }
-    lightdm._username = null;
-  };
-
-  lightdm.suspend = function() {
-    alert("System Suspended. Bye Bye");
-    document.location.reload(true);
-  };
-
-  lightdm.hibernate = function() {
-    alert("System Hibernated. Bye Bye");
-    document.location.reload(true);
-  };
-
-  lightdm.restart = function() {
-    alert("System restart. Bye Bye");
-    document.location.reload(true);
-  };
-
-  lightdm.shutdown = function() {
-    alert("System Shutdown. Bye Bye");
-    document.location.reload(true);
-  };
-
-  lightdm.login = function(user, session) {
-    _lightdm_mock_check_argument_length(arguments, 2);
-    if (!lightdm.is_authenticated) {
-      throw "The system is not authenticated";
-    }
-    if (user !== lightdm.authentication_user) {
-      throw "this user is not authenticated";
-    }
-    alert("logged in successfully!!");
-    document.location.reload(true);
-  };
-
-  if (lightdm.timed_login_delay > 0) {
-    setTimeout(function() {
-      if (!lightdm._timed_login_cancelled()) timed_login();
-    }, lightdm.timed_login_delay);
+    emitLater(window.lightdm.authentication_complete);
   }
-}
 
-if (typeof theme_utils == "undefined") {
-  theme_utils = {
-    get_current_localized_time: function() {
-      return "2002-08-18 00:05:20";
-    }
+  window.lightdm = {
+    hostname: "mock-host",
+    languages: [
+      { code: "en_US", name: "English (US)", territory: "USA" },
+      { code: "en_GB", name: "English (UK)", territory: "UK" },
+    ],
+    layouts: [
+      {
+        name: "us",
+        description: "English (US)",
+        short_description: "en",
+      },
+    ],
+    layout: {
+      name: "us",
+      description: "English (US)",
+      short_description: "en",
+    },
+    sessions: [
+      { key: "lxqt", name: "LXQt", comment: "LXQt desktop" },
+      { key: "openbox", name: "Openbox", comment: "Openbox session" },
+    ],
+    default_session: "lxqt",
+    authentication_user: "",
+    autologin_guest: false,
+    autologin_timeout: 0,
+    autologin_user: "",
+    can_hibernate: true,
+    can_restart: true,
+    can_shutdown: true,
+    can_suspend: true,
+    default_language: null,
+    has_guest_account: false,
+    hide_users_hint: false,
+    in_authentication: false,
+    is_authenticated: false,
+    lock_hint: false,
+    select_guest_hint: false,
+    select_user_hint: "",
+    show_manual_login_hint: true,
+    show_remote_login_hint: false,
+    users: [
+      {
+        username: "clarkk",
+        display_name: "Clark Kent",
+        image: "",
+        language: "en_US",
+        layout: "us",
+        layouts: ["us"],
+        session: "lxqt",
+        logged_in: false,
+        home_directory: "/home/clarkk",
+      },
+      {
+        username: "brucew",
+        display_name: "Bruce Wayne",
+        image: "/home/broken-image.png",
+        language: "en_US",
+        layout: "us",
+        layouts: ["us"],
+        session: "openbox",
+        logged_in: false,
+        home_directory: "/home/brucew",
+      },
+      {
+        username: "peterp",
+        display_name: "Peter Parker",
+        image: "",
+        language: "en_US",
+        layout: "us",
+        layouts: ["us"],
+        session: "",
+        logged_in: true,
+        home_directory: "/home/peterp",
+      },
+    ],
+    show_prompt: new Signal("show_prompt"),
+    show_message: new Signal("show_message"),
+    authentication_complete: new Signal("authentication_complete"),
+    autologin_timer_expired: new Signal("autologin_timer_expired"),
+    mock_password: "password",
+
+    authenticate(username) {
+      this.is_authenticated = false;
+      this.in_authentication = true;
+      this.authentication_user = username || "";
+
+      if (!username) {
+        emitLater(this.show_prompt, "login:", 0);
+      } else {
+        emitLater(this.show_prompt, "Password: ", 1);
+      }
+      return true;
+    },
+
+    authenticate_as_guest() {
+      return false;
+    },
+
+    cancel_authentication() {
+      this.authentication_user = "";
+      this.in_authentication = false;
+      return true;
+    },
+
+    cancel_autologin() {
+      return true;
+    },
+
+    respond(response) {
+      if (!this.in_authentication) return false;
+
+      if (!this.authentication_user) {
+        const user = getUser(response);
+
+        if (!user) {
+          emitLater(this.show_message, `${response} is an invalid user`, 1);
+          emitLater(this.show_prompt, "login:", 0);
+          return false;
+        }
+
+        this.authentication_user = user.username;
+        emitLater(this.show_prompt, "Password: ", 1);
+        return true;
+      }
+
+      if (!getUser(this.authentication_user)) {
+        finishAuthentication(false, `${this.authentication_user} is an invalid user`);
+        return false;
+      }
+
+      finishAuthentication(response === this.mock_password);
+      return true;
+    },
+
+    start_session(session) {
+      const resolved = session || this.default_session;
+      console.log("Mock session started:", resolved);
+      return true;
+    },
+
+    suspend() {
+      console.log("Suspend requested");
+      return true;
+    },
+
+    hibernate() {
+      console.log("Hibernate requested");
+      return true;
+    },
+
+    restart() {
+      console.log("Restart requested");
+      return true;
+    },
+
+    shutdown() {
+      console.log("Shutdown requested");
+      return true;
+    },
   };
-}
 
-if (typeof theme_utils == "undefined") {
-	theme_utils = {
-		get_current_localized_time: function(){
-			return "2002-08-18 00:05:20";
-		}
-	}
-	
-}
+  window.greeter_config = {
+    greeter: {
+      debug_mode: true,
+      detect_theme_errors: true,
+      secure_mode: true,
+      theme: "aqua",
+      time_language: "",
+    },
+  };
 
-function _lightdm_mock_check_argument_length(args, length) {
-  if (args.length != length) {
-    throw "incorrect number of arguments in function call";
+  if (window.theme_utils === undefined) {
+    window.theme_utils = {
+      get_current_localized_time() {
+        return new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      },
+    };
   }
-}
 
-function _lightdm_mock_get_user(username) {
-  var user = null;
-  for (var i = 0; i < lightdm.users.length; ++i) {
-    if (lightdm.users[i].name == username) {
-      user = lightdm.users[i];
-      break;
-    }
+  window._ready_event = new Event("GreeterReady");
+
+  function dispatchReady() {
+    window.dispatchEvent(window._ready_event);
   }
-  return user;
-}
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", dispatchReady, { once: true });
+  } else {
+    window.setTimeout(dispatchReady, 0);
+  }
+})();

@@ -1,261 +1,376 @@
 /*
- * greeter.js - Migrated for web-greeter
+ * greeter.js - Compatibility layer for modern web-greeter
  */
 
-let selected_user = null;
+const state = {
+  selectedUsername: null,
+  selectedSessionKey: null,
+  promptVisible: false,
+  initialized: false,
+  userCards: new Map(),
+  usersByUsername: new Map(),
+};
 
-function show_prompt(text) {
-  const password_container = document.querySelector("#password_container");
-  const password_entry = document.querySelector("#password_entry");
-  const background = document.querySelector("#background");
-  
-  const users = document.querySelectorAll(".user");
-  const escaped_user = CSS.escape(selected_user);
-  const user_node = document.querySelector("#" + escaped_user);
-  
-  if (!isVisiblePass(password_container)) {
-    if (user_node) {
-      const rect = user_node.getClientRects()[0];
-      const parentRect = user_node.parentElement.getClientRects()[0];
-      const center = parentRect.width / 2;
-
-      let left = center - rect.width / 2 - rect.left;
-
-      if (left < 5 && left > -5) {
-        left = 0;
-      }
-
-      for (let user of users) {
-        setVisible(user, user.id === selected_user);
-        user.style.left = left;
-      }
-    } else {
-      for (let user of users) {
-        setVisible(user, user.id === selected_user);
-      }
-    }
-
-    setVisiblePass(password_container, true);
-    password_entry.placeholder = text.replace(":", "");
-
-    const back = document.querySelector("#back");
-    const enter = document.querySelector("#enter");
-
-    back.onclick = show_users;
-    setVisible(back, true);
-
-    enter.onclick = provide_secret;
-    setVisible(enter, true);
-  }
-
-  if (background) background.classList.add("blurred");
-  password_entry.value = "";
-  password_entry.focus();
-}
-
-function show_message(text) {
-  const message = document.querySelector("#message_content");
-
-  message.innerHTML = text;
-
-  if (text) {
-    document.querySelector("#message").classList.remove("hidden");
-  } else {
-    document.querySelector("#message").classList.add("hidden");
-  }
-
-  message.classList.remove("error");
-}
-
-function show_error(text) {
-  show_message(text);
-  const message = document.querySelector("#message_content");
-
-  message.classList.add("error");
-}
-
-function onAuthenticationComplete() {
-  if (window.lightdm?.is_authenticated) {
-    const session = window.lightdm.default_session;
-    window.lightdm.start_session(session);
-  } else {
-    const password_container = document.querySelector("#password_container");
-
-    password_container.classList.add("apply_shake");
-    password_container.addEventListener("animationend", err => {
-      password_container.classList.remove("apply_shake");
-    });
-    start_authentication(selected_user);
-  }
-}
-
-function timed_login(user) {
-  window.lightdm?.start_session(window.lightdm.timed_login_user);
-}
-
-function start_authentication(username) {
-  if (!window.lightdm) return;
-  
-  selected_user = username;
-  window.lightdm.cancel_authentication();
-  window.lightdm.authenticate(username);
-  
-  show_prompt("Password: ");
-}
-
-function provide_secret() {
-  const entry = document.querySelector("#password_entry");
-  window.lightdm?.respond(entry.value);
-}
-
-function show_users() {
-  const users = document.querySelectorAll(".user");
-  const background = document.querySelector("#background");
-  for (let user of users) {
-    setVisible(user, true);
-    user.style.left = 0;
-  }
-  setVisible(document.querySelector("#back"), false);
-  setVisible(document.querySelector("#enter"), false);
-  setVisiblePass(document.querySelector("#password_container"), false);
-  selected_user = null;
-  background.classList.remove("blurred");
-}
-
-function user_clicked(event) {
-  if (selected_user !== null) {
-    selected_user = null;
-    window.lightdm?.cancel_authentication();
-    show_users();
-  } else {
-    selected_user = event.currentTarget.id;
-    start_authentication(event.currentTarget.id);
-  }
-
-  show_message("");
-  event.stopPropagation();
-
-  return false;
+function $(selector) {
+  return document.querySelector(selector);
 }
 
 function setVisible(element, visible) {
-  if (visible) {
-    element.classList.remove("hidden");
-  } else {
-    element.classList.add("hidden");
-  }
+  if (!element) return;
+  element.classList.toggle("hidden", !visible);
 }
 
-function setVisiblePass(element, visible) {
-  if (visible) {
-    element.classList.remove("passhidden");
-  } else {
-    element.classList.add("passhidden");
-  }
+function setPromptVisible(visible) {
+  const passwordContainer = $("#password_container");
+
+  state.promptVisible = visible;
+
+  if (!passwordContainer) return;
+  passwordContainer.classList.toggle("passhidden", !visible);
 }
 
-function isVisible(element) {
-  return !element.classList.contains("hidden");
+function clearMessage() {
+  renderMessage("", 0);
 }
 
-function isVisiblePass(element) {
-  return !element.classList.contains("passhidden");
-}
+function renderMessage(text, type) {
+  const wrapper = $("#message");
+  const content = $("#message_content");
 
-function on_image_error(err) {
-  err.currentTarget.src = "resources/img/avatar.svg";
-}
+  if (!wrapper || !content) return;
 
-function key_press_handler(event) {
-  let action = null;
-  switch (event.code) {
-    case "Enter":
-      action =
-        selected_user != null
-          ? provide_secret
-          : start_authentication(window.lightdm?.users[0]?.name);
-
-      event.preventDefault();
-      event.stopPropagation();
-      break;
-    case "Escape":
-      action = show_users;
-      break;
-  }
-  if (action instanceof Function) {
-    action();
-  }
+  content.textContent = text || "";
+  content.classList.toggle("error", !!text && type !== 0);
+  wrapper.classList.toggle("hidden", !text);
 }
 
 function getCurrentTime() {
   const now = new Date();
-  return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 function initializeClock() {
-  const time = document.querySelector("#time");
+  const time = $("#time");
 
-  time.innerHTML = window.theme_utils?.get_current_localized_time() || getCurrentTime();
-  setInterval(
-    () => (time.innerHTML = window.theme_utils?.get_current_localized_time() || getCurrentTime()),
-    60000
+  if (!time) return;
+
+  time.textContent =
+    window.theme_utils?.get_current_localized_time() || getCurrentTime();
+  window.setInterval(() => {
+    time.textContent =
+      window.theme_utils?.get_current_localized_time() || getCurrentTime();
+  }, 60000);
+}
+
+function onImageError(event) {
+  event.currentTarget.src = "resources/img/avatar.svg";
+}
+
+function getPasswordPromptType() {
+  return 1;
+}
+
+function getSelectedUserCard() {
+  if (!state.selectedUsername) return null;
+  return state.userCards.get(state.selectedUsername) || null;
+}
+
+function updateCardLayout() {
+  const selectedCard = getSelectedUserCard();
+  const cards = document.querySelectorAll(".user");
+  let left = 0;
+
+  if (selectedCard) {
+    const rect = selectedCard.getBoundingClientRect();
+    const parentRect = selectedCard.parentElement?.getBoundingClientRect();
+
+    if (rect.width > 0 && parentRect) {
+      left = parentRect.width / 2 - rect.width / 2 - rect.left;
+      if (Math.abs(left) < 5) {
+        left = 0;
+      }
+    }
+  }
+
+  for (const card of cards) {
+    const isSelected =
+      !!state.selectedUsername &&
+      card.dataset.username === state.selectedUsername;
+
+    setVisible(card, !state.selectedUsername || isSelected);
+    card.style.left = isSelected ? `${left}px` : "0px";
+  }
+}
+
+function showUserList() {
+  const background = $("#background");
+  const passwordEntry = $("#password_entry");
+
+  state.selectedUsername = null;
+  state.selectedSessionKey = null;
+  setPromptVisible(false);
+  updateCardLayout();
+  setVisible($("#back"), false);
+  setVisible($("#enter"), false);
+  clearMessage();
+
+  if (background) {
+    background.classList.remove("blurred");
+  }
+  if (passwordEntry) {
+    passwordEntry.value = "";
+  }
+}
+
+function resolveSessionKey(user) {
+  const sessionFromUser = user?.session;
+  const defaultSession = window.lightdm?.default_session;
+  const firstSession = window.lightdm?.sessions?.[0]?.key;
+
+  return sessionFromUser || defaultSession || firstSession || null;
+}
+
+function cancelAuthentication() {
+  if (!window.lightdm) return;
+  if (window.lightdm.in_authentication) {
+    window.lightdm.cancel_authentication();
+  }
+}
+
+function armSelectedUserAuthentication() {
+  if (!window.lightdm || !state.selectedUsername) return;
+
+  cancelAuthentication();
+  setPromptVisible(false);
+  window.lightdm.authenticate(state.selectedUsername);
+}
+
+function selectUserByUsername(username) {
+  const user = state.usersByUsername.get(username);
+
+  if (!user || !window.lightdm) return;
+
+  state.selectedUsername = user.username;
+  state.selectedSessionKey = resolveSessionKey(user);
+  clearMessage();
+  updateCardLayout();
+  armSelectedUserAuthentication();
+}
+
+function handleUserClick(event) {
+  const username = event.currentTarget?.dataset?.username;
+
+  if (!username) return;
+  if (state.selectedUsername === username && state.promptVisible) return;
+
+  selectUserByUsername(username);
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function showPrompt(text, type) {
+  const passwordEntry = $("#password_entry");
+  const background = $("#background");
+  const promptText = (text || "").replace(/:$/, "");
+
+  if (type !== getPasswordPromptType()) {
+    return;
+  }
+  if (!state.selectedUsername) {
+    return;
+  }
+
+  updateCardLayout();
+  setPromptVisible(true);
+  setVisible($("#back"), true);
+  setVisible($("#enter"), true);
+
+  if (passwordEntry) {
+    passwordEntry.placeholder = promptText || "Password";
+    passwordEntry.value = "";
+    passwordEntry.disabled = false;
+    passwordEntry.focus();
+  }
+  if (background) {
+    background.classList.add("blurred");
+  }
+}
+
+function showMessage(text, type) {
+  renderMessage(text, type);
+}
+
+function shakePasswordContainer() {
+  const passwordContainer = $("#password_container");
+
+  if (!passwordContainer) return;
+
+  passwordContainer.classList.add("apply_shake");
+  passwordContainer.addEventListener(
+    "animationend",
+    () => {
+      passwordContainer.classList.remove("apply_shake");
+    },
+    { once: true }
   );
 }
 
-function initializeUsers() {
-  if (!window.lightdm?.users) return;
-  
-  const template = document.querySelector("#user_template");
-  const parent = template.parentElement;
+function handleAuthenticationComplete() {
+  const passwordEntry = $("#password_entry");
 
+  if (!window.lightdm) return;
+
+  if (window.lightdm.is_authenticated) {
+    const sessionKey =
+      state.selectedSessionKey ||
+      window.lightdm.default_session ||
+      window.lightdm.sessions?.[0]?.key ||
+      null;
+
+    if (sessionKey) {
+      window.lightdm.start_session(sessionKey);
+    } else {
+      renderMessage("No session is available", 1);
+    }
+    return;
+  }
+
+  shakePasswordContainer();
+  if (passwordEntry) {
+    passwordEntry.value = "";
+    passwordEntry.disabled = false;
+    passwordEntry.focus();
+  }
+  if (!$("#message_content")?.textContent?.trim()) {
+    renderMessage("Authentication failed", 1);
+  }
+  if (state.selectedUsername) {
+    armSelectedUserAuthentication();
+  }
+}
+
+function submitPassword() {
+  const passwordEntry = $("#password_entry");
+
+  if (!window.lightdm || !passwordEntry || !state.selectedUsername) return;
+  if (!state.promptVisible) return;
+
+  clearMessage();
+  passwordEntry.disabled = true;
+  window.lightdm.respond(passwordEntry.value);
+}
+
+function bindPasswordForm() {
+  const passwordForm = $("#password_form");
+  const enterButton = $("#enter");
+  const backButton = $("#back");
+
+  passwordForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    submitPassword();
+  });
+  enterButton?.addEventListener("click", submitPassword);
+  backButton?.addEventListener("click", () => {
+    cancelAuthentication();
+    showUserList();
+  });
+}
+
+function bindPowerButtons() {
+  const actions = [
+    ["#action_suspend", "suspend", "can_suspend"],
+    ["#action_restart", "restart", "can_restart"],
+    ["#action_shutdown", "shutdown", "can_shutdown"],
+  ];
+
+  for (const [selector, methodName, capability] of actions) {
+    const element = $(selector);
+    const isEnabled = window.lightdm?.[capability];
+
+    setVisible(element, !!isEnabled);
+    element?.addEventListener("click", () => {
+      window.lightdm?.[methodName]?.();
+    });
+  }
+}
+
+function bindKeyboardShortcuts() {
+  document.addEventListener("keydown", (event) => {
+    if (event.code === "Escape" && state.selectedUsername) {
+      event.preventDefault();
+      cancelAuthentication();
+      showUserList();
+      return;
+    }
+
+    if (event.code !== "Enter") return;
+    if (event.target === $("#password_entry")) return;
+
+    event.preventDefault();
+
+    if (state.selectedUsername && state.promptVisible) {
+      submitPassword();
+      return;
+    }
+
+    const firstUser = window.lightdm?.users?.[0]?.username;
+    if (firstUser) {
+      selectUserByUsername(firstUser);
+    }
+  });
+}
+
+function initializeUsers() {
+  const template = $("#user_template");
+  const parent = template?.parentElement;
+
+  if (!window.lightdm?.users || !template || !parent) return;
+
+  state.userCards.clear();
+  state.usersByUsername.clear();
   parent.removeChild(template);
 
   for (const user of window.lightdm.users) {
     const userNode = template.cloneNode(true);
-    const image = userNode.querySelectorAll(".user_image")[0];
-    const name = userNode.querySelectorAll(".user_name")[0];
+    const image = userNode.querySelector(".user_image");
+    const name = userNode.querySelector(".user_name");
 
-    name.innerHTML = user.display_name;
+    userNode.removeAttribute("id");
+    userNode.dataset.username = user.username;
 
-    if (user.image) {
-      image.src = user.image;
-      image.onerror = on_image_error;
-    } else {
-      image.src = "resources/img/avatar.svg";
+    if (name) {
+      name.textContent = user.display_name || user.username;
+    }
+    if (image) {
+      image.src = user.image || "resources/img/avatar.svg";
+      image.addEventListener("error", onImageError);
     }
 
-    userNode.id = user.name;
-    userNode.onclick = user_clicked;
+    userNode.addEventListener("click", handleUserClick);
     parent.appendChild(userNode);
+    state.userCards.set(user.username, userNode);
+    state.usersByUsername.set(user.username, user);
   }
-  setTimeout(show_users, 400);
-}
 
-function passwordKeydown(event) {
-  if (event.code === "Enter") {
-    provide_secret();
-    event.preventDefault();
-    event.stopPropagation();
-  }
+  showUserList();
 }
 
 function initGreeter() {
-  if (!window.lightdm) return;
-  
-  window.lightdm.show_prompt.connect(show_prompt);
-  window.lightdm.show_message.connect(show_message);
-  window.lightdm.show_error.connect(show_error);
-  window.lightdm.authentication_complete.connect(onAuthenticationComplete);
-  window.lightdm.timed_login.connect(timed_login);
-  
-  const passwordEntry = document.querySelector("#password_entry");
-  if (passwordEntry) {
-    passwordEntry.addEventListener("keydown", passwordKeydown);
-  }
-  
+  if (state.initialized || !window.lightdm) return;
+
+  state.initialized = true;
+
+  window.lightdm.show_prompt.connect(showPrompt);
+  window.lightdm.show_message.connect(showMessage);
+  window.lightdm.authentication_complete.connect(
+    handleAuthenticationComplete
+  );
+
+  bindPasswordForm();
+  bindPowerButtons();
+  bindKeyboardShortcuts();
   initializeUsers();
   initializeClock();
-  document.addEventListener("keydown", key_press_handler);
 }
 
 window.addEventListener("GreeterReady", initGreeter);

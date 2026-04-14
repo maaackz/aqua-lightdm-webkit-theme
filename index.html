@@ -1,7 +1,14 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+  <title>Aqua Greeter</title>
   <link rel="stylesheet" type="text/css" href="resources/css/style.css" />
-  <!-- mock.js is only required for local testing - use web-greeter compatible version -->
+  <!-- mock.js is only required for local testing - use the web-greeter compatible mock -->
   <!-- <script type="text/javascript" src="resources/js/mock.js"></script> -->
   <script type="text/javascript" src="resources/js/greeter.js" defer></script>
 </head>
@@ -21,13 +28,13 @@
           <svg xmlns="http://www.w3.org/2000/svg" version="1.1" x="0px" y="0px" width="24px" height="24px" viewBox="0 0 48 48" class="login_container_button"><path d="m24.105 0.017578a24 24 0 0 0-24 24 24 24 0 0 0 24 24 24 24 0 0 0 24-24 24 24 0 0 0-24-24zm5.0547 11.982c0.43015 0 0.85941 0.16396 1.1875 0.49219 0.65619 0.65619 0.65619 1.7205 0 2.377l-9.1309 9.1309 9.1328 9.1309c0.65619 0.65613 0.65619 1.7208 0 2.377-0.65613 0.65677-1.7205 0.65677-2.377 0l-10.32-10.32c-0.32804-0.32809-0.49219-0.75732-0.49219-1.1875 0-0.42997 0.16409-0.85925 0.49219-1.1875l10.318-10.32c0.32823-0.32823 0.7593-0.49219 1.1895-0.49219z"/></svg>
         </div>
         <div id="password_container" class="center pass passhidden passsmooth">
-          <form action="javascript: provide_secret()" class="password_prompt">
+          <form id="password_form" class="password_prompt">
             <input id="password_entry" type="password" placeholder="\tEnter Password" />
             <div id="session_container" class="hidden">
               <div id="session_template">
                 <label>
                   <input type="radio" name="session">&nbsp;
-                  <span class="session_label"></a>
+                  <span class="session_label"></span>
                 </label>
               </div>
             </div>
@@ -44,15 +51,15 @@
   </div>
   <div class="footer">
     <div id="action_suspend" class="action button">
-      <div class="action_image_wrapper" onclick="lightdm.suspend();"><img class="action_image" src="resources/img/sleep.svg" /></div>
+      <div class="action_image_wrapper"><img class="action_image" src="resources/img/sleep.svg" /></div>
       <span class="action_label">Suspend</span>
     </div>
     <div id="action_restart" class="action button">
-      <div class="action_image_wrapper" onclick="lightdm.restart();"><img class="action_image" src="resources/img/restart.svg" /></div>
+      <div class="action_image_wrapper"><img class="action_image" src="resources/img/restart.svg" /></div>
       <span class="action_label">Restart</span>
     </div>
     <div id="action_shutdown" class="action button">
-      <div class="action_image_wrapper" onclick="lightdm.shutdown();"><img class="action_image" src="resources/img/shutdown.svg" /></div>
+      <div class="action_image_wrapper"><img class="action_image" src="resources/img/shutdown.svg" /></div>
       <span class="action_label">Shut Down</span>
     </div>
   </div>
