@@ -209,6 +209,11 @@
   };
 
   window.greeter_config = {
+    branding: {
+      background_images_dir: "/usr/share/backgrounds",
+      logo: "",
+      user_image: "",
+    },
     greeter: {
       debug_mode: true,
       detect_theme_errors: true,

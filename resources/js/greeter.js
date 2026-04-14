@@ -120,6 +120,7 @@ function showUserList() {
   if (passwordEntry) {
     passwordEntry.value = "";
   }
+  updateBackground();
 }
 
 function resolveSessionKey(user) {
@@ -153,6 +154,7 @@ function selectUserByUsername(username) {
   state.selectedUsername = user.username;
   state.selectedSessionKey = resolveSessionKey(user);
   clearMessage();
+  updateBackground();
   updateCardLayout();
   armSelectedUserAuthentication();
 }
@@ -171,7 +173,7 @@ function handleUserClick(event) {
 function showPrompt(text, type) {
   const passwordEntry = $("#password_entry");
   const background = $("#background");
-  const promptText = (text || "").replace(/:$/, "");
+  const promptText = (text || "").replace(/\s*:\s*$/, "").trim();
 
   if (type !== getPasswordPromptType()) {
     return;
@@ -213,6 +215,22 @@ function shakePasswordContainer() {
     },
     { once: true }
   );
+}
+
+function updateBackground() {
+  const background = $("#background");
+  const user = state.selectedUsername
+    ? state.usersByUsername.get(state.selectedUsername)
+    : null;
+  const imagePath = user?.background?.trim() || "/usr/share/backgrounds/current";
+
+  if (!background) return;
+
+  background.style.backgroundImage =
+    `linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), url("${imagePath}")`;
+  background.style.backgroundPosition = "center center";
+  background.style.backgroundRepeat = "no-repeat";
+  background.style.backgroundSize = "cover";
 }
 
 function handleAuthenticationComplete() {
@@ -352,6 +370,7 @@ function initializeUsers() {
     state.usersByUsername.set(user.username, user);
   }
 
+  updateBackground();
   showUserList();
 }
 
